@@ -1,342 +1,292 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aether | New Tab</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Youtube, Github, Mail, MessageSquare, Music, LayoutGrid, PlayCircle } from 'lucide-react';
+
+// --- Canvas Background Component ---
+const Starfield = () => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        let animationFrameId;
         
-        body {
-            margin: 0;
-            background-color: #050505;
-            color: white;
-            font-family: 'Inter', sans-serif;
-            overflow: hidden;
-        }
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
 
-        /* Smooth entrance animations */
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        const particles = [];
+        const particleCount = 100;
+        const connectionDistance = 150;
+        let mouse = { x: null, y: null };
 
-        .animate-enter {
-            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            opacity: 0;
-        }
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2;
+                this.baseColor = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.1})`;
+            }
 
-        .delay-100 { animation-delay: 0.1s; }
-        .delay-200 { animation-delay: 0.2s; }
-        .delay-300 { animation-delay: 0.3s; }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
 
-        /* Glassmorphism Utilities */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
+                // Bounce off edges
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
 
-        .glass-input {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .glass-input:focus {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 40px rgba(255, 255, 255, 0.05);
-            transform: scale(1.02);
-        }
-
-        /* Custom scrollbar for sleekness */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-
-        #canvas-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none; /* Let clicks pass through */
-        }
-
-        /* Search Focus Mode */
-        .focus-mode .blur-target {
-            filter: blur(8px);
-            opacity: 0.3;
-            transform: scale(0.98);
-            transition: all 0.5s ease;
-        }
-        
-        .blur-target {
-            transition: all 0.5s ease;
-        }
-
-        /* Icon Hover Glow */
-        .icon-btn {
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .icon-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px -5px rgba(255,255,255, 0.15);
-        }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-
-        // --- Canvas Background Component ---
-        const Starfield = () => {
-            const canvasRef = useRef(null);
-
-            useEffect(() => {
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                let animationFrameId;
-                
-                let width = window.innerWidth;
-                let height = window.innerHeight;
-                canvas.width = width;
-                canvas.height = height;
-
-                const particles = [];
-                const particleCount = 100;
-                const connectionDistance = 150;
-                let mouse = { x: null, y: null };
-
-                class Particle {
-                    constructor() {
-                        this.x = Math.random() * width;
-                        this.y = Math.random() * height;
-                        this.vx = (Math.random() - 0.5) * 0.5;
-                        this.vy = (Math.random() - 0.5) * 0.5;
-                        this.size = Math.random() * 2;
-                        this.baseColor = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.1})`;
-                    }
-
-                    update() {
-                        this.x += this.vx;
-                        this.y += this.vy;
-
-                        // Bounce off edges
-                        if (this.x < 0 || this.x > width) this.vx *= -1;
-                        if (this.y < 0 || this.y > height) this.vy *= -1;
-
-                        // Mouse repulsion
-                        if (mouse.x != null) {
-                            let dx = mouse.x - this.x;
-                            let dy = mouse.y - this.y;
-                            let distance = Math.sqrt(dx*dx + dy*dy);
-                            if (distance < 200) {
-                                const forceDirectionX = dx / distance;
-                                const forceDirectionY = dy / distance;
-                                const force = (200 - distance) / 200;
-                                const directionX = forceDirectionX * force * 0.5;
-                                const directionY = forceDirectionY * force * 0.5;
-                                this.x -= directionX;
-                                this.y -= directionY;
-                            }
-                        }
-                    }
-
-                    draw() {
-                        ctx.fillStyle = this.baseColor;
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                        ctx.fill();
+                // Mouse repulsion
+                if (mouse.x != null) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx*dx + dy*dy);
+                    if (distance < 200) {
+                        const forceDirectionX = dx / distance;
+                        const forceDirectionY = dy / distance;
+                        const force = (200 - distance) / 200;
+                        const directionX = forceDirectionX * force * 0.5;
+                        const directionY = forceDirectionY * force * 0.5;
+                        this.x -= directionX;
+                        this.y -= directionY;
                     }
                 }
+            }
 
-                const init = () => {
-                    for (let i = 0; i < particleCount; i++) {
-                        particles.push(new Particle());
-                    }
-                };
+            draw() {
+                ctx.fillStyle = this.baseColor;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
 
-                const animate = () => {
-                    ctx.clearRect(0, 0, width, height);
-                    
-                    for (let i = 0; i < particles.length; i++) {
-                        particles[i].update();
-                        particles[i].draw();
-
-                        // Connect particles
-                        for (let j = i; j < particles.length; j++) {
-                            let dx = particles[i].x - particles[j].x;
-                            let dy = particles[i].y - particles[j].y;
-                            let distance = Math.sqrt(dx*dx + dy*dy);
-
-                            if (distance < connectionDistance) {
-                                ctx.beginPath();
-                                ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 - distance/connectionDistance * 0.1})`;
-                                ctx.lineWidth = 0.5;
-                                ctx.moveTo(particles[i].x, particles[i].y);
-                                ctx.lineTo(particles[j].x, particles[j].y);
-                                ctx.stroke();
-                            }
-                        }
-                    }
-                    animationFrameId = requestAnimationFrame(animate);
-                };
-
-                init();
-                animate();
-
-                const handleResize = () => {
-                    width = window.innerWidth;
-                    height = window.innerHeight;
-                    canvas.width = width;
-                    canvas.height = height;
-                };
-
-                const handleMouseMove = (e) => {
-                    mouse.x = e.x;
-                    mouse.y = e.y;
-                };
-
-                window.addEventListener('resize', handleResize);
-                window.addEventListener('mousemove', handleMouseMove);
-
-                return () => {
-                    window.removeEventListener('resize', handleResize);
-                    window.removeEventListener('mousemove', handleMouseMove);
-                    cancelAnimationFrame(animationFrameId);
-                };
-            }, []);
-
-            return <canvas ref={canvasRef} id="canvas-container" />;
+        const init = () => {
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
         };
 
-        // --- Main App Component ---
-        const App = () => {
-            const [time, setTime] = useState(new Date());
-            const [searchQuery, setSearchQuery] = useState('');
-            const [isSearchFocused, setIsSearchFocused] = useState(false);
+        const animate = () => {
+            ctx.clearRect(0, 0, width, height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
 
-            // Trigger Lucide icon replacement after render
-            useEffect(() => {
-                lucide.createIcons();
-            });
+                // Connect particles
+                for (let j = i; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let distance = Math.sqrt(dx*dx + dy*dy);
 
-            useEffect(() => {
-                const timer = setInterval(() => setTime(new Date()), 1000);
-                return () => clearInterval(timer);
-            }, []);
-
-            const handleSearch = (e) => {
-                if (e.key === 'Enter' && searchQuery.trim()) {
-                    window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+                    if (distance < connectionDistance) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 - distance/connectionDistance * 0.1})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
                 }
-            };
+            }
+            animationFrameId = requestAnimationFrame(animate);
+        };
 
-            const getGreeting = () => {
-                const hour = time.getHours();
-                if (hour < 12) return "Good morning";
-                if (hour < 18) return "Good afternoon";
-                return "Good evening";
-            };
+        init();
+        animate();
 
-            // Adjust generic icons since Lucide CDN might not have brand icons in the basic set sometimes, 
-            // using safe fallbacks for visuals
-            const safeShortcuts = [
-                { icon: "play-circle", url: "https://youtube.com", label: "YouTube" },
-                { icon: "github", url: "https://github.com", label: "GitHub" },
-                { icon: "mail", url: "https://gmail.com", label: "Mail" },
-                { icon: "message-square", url: "https://reddit.com", label: "Reddit" },
-                { icon: "music", url: "https://spotify.com", label: "Spotify" },
-                { icon: "layout-grid", url: "https://dribbble.com", label: "Inspo" },
-            ];
+        const handleResize = () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        };
 
-            return (
-                <div className={`relative min-h-screen flex flex-col items-center justify-center p-6 ${isSearchFocused ? 'focus-mode' : ''}`}>
-                    <Starfield />
-                    
-                    <div className="relative z-10 w-full max-w-4xl flex flex-col items-center gap-12">
-                        
-                        {/* Header Section */}
-                        <div className={`text-center flex flex-col items-center gap-4 blur-target animate-enter`}>
-                            <h2 className="text-lg md:text-xl font-light text-gray-400 tracking-[0.2em] uppercase">
-                                {getGreeting()}
-                            </h2>
-                            <h1 className="text-7xl md:text-9xl font-thin tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 drop-shadow-2xl select-none">
-                                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                            </h1>
-                            <p className="text-sm text-gray-500 tracking-widest uppercase mt-2">
-                                {time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-                            </p>
+        const handleMouseMove = (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        };
+
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('mousemove', handleMouseMove);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('mousemove', handleMouseMove);
+            cancelAnimationFrame(animationFrameId);
+        };
+    }, []);
+
+    return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full pointer-events-none z-0" />;
+};
+
+// --- Main App Component ---
+export default function App() {
+    const [time, setTime] = useState(new Date());
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleSearch = (e) => {
+        if (e.key === 'Enter' && searchQuery.trim()) {
+            window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+        }
+    };
+
+    const getGreeting = () => {
+        const hour = time.getHours();
+        if (hour < 12) return "Good morning";
+        if (hour < 18) return "Good afternoon";
+        return "Good evening";
+    };
+
+    const safeShortcuts = [
+        { Icon: PlayCircle, url: "https://youtube.com", label: "YouTube" },
+        { Icon: Github, url: "https://github.com", label: "GitHub" },
+        { Icon: Mail, url: "https://gmail.com", label: "Mail" },
+        { Icon: MessageSquare, url: "https://reddit.com", label: "Reddit" },
+        { Icon: Music, url: "https://spotify.com", label: "Spotify" },
+        { Icon: LayoutGrid, url: "https://dribbble.com", label: "Inspo" },
+    ];
+
+    return (
+        <div className={`relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden transition-all duration-500 bg-[#050505] text-white font-sans ${isSearchFocused ? 'focus-mode' : ''}`}>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
+                
+                /* Smooth entrance animations */
+                @keyframes fadeUp {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .animate-enter {
+                    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                    opacity: 0;
+                }
+
+                .delay-100 { animation-delay: 0.1s; }
+                .delay-200 { animation-delay: 0.2s; }
+                .delay-300 { animation-delay: 0.3s; }
+
+                /* Glassmorphism Utilities */
+                .glass-panel {
+                    background: rgba(255, 255, 255, 0.03);
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+                }
+
+                .glass-input {
+                    background: rgba(255, 255, 255, 0.05);
+                    backdrop-filter: blur(12px);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                .glass-input:focus {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    box-shadow: 0 0 40px rgba(255, 255, 255, 0.05);
+                    transform: scale(1.02);
+                }
+
+                /* Search Focus Mode */
+                .focus-mode .blur-target {
+                    filter: blur(8px);
+                    opacity: 0.3;
+                    transform: scale(0.98);
+                    transition: all 0.5s ease;
+                }
+                
+                .blur-target {
+                    transition: all 0.5s ease;
+                }
+
+                /* Icon Hover Glow */
+                .icon-btn {
+                    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+                .icon-btn:hover {
+                    background: rgba(255, 255, 255, 0.15);
+                    transform: translateY(-5px);
+                    box-shadow: 0 10px 20px -5px rgba(255,255,255, 0.15);
+                }
+            `}</style>
+
+            <Starfield />
+            
+            <div className="relative z-10 w-full max-w-4xl flex flex-col items-center gap-12">
+                
+                {/* Header Section */}
+                <div className={`text-center flex flex-col items-center gap-4 blur-target animate-enter`}>
+                    <h2 className="text-lg md:text-xl font-light text-gray-400 tracking-[0.2em] uppercase">
+                        {getGreeting()}
+                    </h2>
+                    <h1 className="text-7xl md:text-9xl font-thin tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 drop-shadow-2xl select-none">
+                        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </h1>
+                    <p className="text-sm text-gray-500 tracking-widest uppercase mt-2">
+                        {time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </p>
+                </div>
+
+                {/* Search Section */}
+                <div className="w-full max-w-2xl relative group animate-enter delay-100">
+                    <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-2xl transition-opacity duration-500 ${isSearchFocused ? 'opacity-100' : 'opacity-0'}`}></div>
+                    <div className="relative">
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
+                            <Search className="w-6 h-6" />
                         </div>
-
-                        {/* Search Section */}
-                        <div className="w-full max-w-2xl relative group animate-enter delay-100">
-                            <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-2xl transition-opacity duration-500 ${isSearchFocused ? 'opacity-100' : 'opacity-0'}`}></div>
-                            <div className="relative">
-                                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
-                                    <i data-lucide="search" className="w-6 h-6"></i>
-                                </div>
-                                <input 
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={handleSearch}
-                                    onFocus={() => setIsSearchFocused(true)}
-                                    onBlur={() => setIsSearchFocused(false)}
-                                    placeholder="Search the universe..."
-                                    className="glass-input w-full py-5 pl-16 pr-6 rounded-full text-xl text-white placeholder-gray-500 outline-none shadow-2xl"
-                                    autoFocus
-                                />
-                                <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none opacity-50">
-                                    <span className="text-xs border border-gray-600 rounded px-2 py-1">ENTER</span>
-                                </div>
-                            </div>
+                        <input 
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearch}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setIsSearchFocused(false)}
+                            placeholder="Search the universe..."
+                            className="glass-input w-full py-5 pl-16 pr-6 rounded-full text-xl text-white placeholder-gray-500 outline-none shadow-2xl"
+                            autoFocus
+                        />
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none opacity-50">
+                            <span className="text-xs border border-gray-600 rounded px-2 py-1">ENTER</span>
                         </div>
-
-                        {/* Shortcuts Grid */}
-                        <div className={`grid grid-cols-3 md:grid-cols-6 gap-6 blur-target animate-enter delay-200`}>
-                            {safeShortcuts.map((site, index) => (
-                                <a 
-                                    key={index} 
-                                    href={site.url}
-                                    className="icon-btn glass-panel w-24 h-24 rounded-3xl flex flex-col items-center justify-center gap-3 group text-gray-300 hover:text-white hover:border-white/20 no-underline"
-                                >
-                                    <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
-                                        <i data-lucide={site.icon} className="w-8 h-8"></i>
-                                    </div>
-                                    <span className="text-xs font-medium tracking-wide opacity-70 group-hover:opacity-100">{site.label}</span>
-                                </a>
-                            ))}
-                        </div>
-
-                    </div>
-
-                    {/* Footer Quote/Info */}
-                    <div className="fixed bottom-8 text-center blur-target animate-enter delay-300">
-                         <p className="text-xs text-gray-600 hover:text-gray-400 transition-colors cursor-default">
-                            DESIGNED FOR FOCUS
-                         </p>
                     </div>
                 </div>
-            );
-        };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+                {/* Shortcuts Grid */}
+                <div className={`grid grid-cols-3 md:grid-cols-6 gap-6 blur-target animate-enter delay-200`}>
+                    {safeShortcuts.map((site, index) => (
+                        <a 
+                            key={index} 
+                            href={site.url}
+                            className="icon-btn glass-panel w-24 h-24 rounded-3xl flex flex-col items-center justify-center gap-3 group text-gray-300 hover:text-white hover:border-white/20 no-underline"
+                        >
+                            <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
+                                <site.Icon className="w-8 h-8" />
+                            </div>
+                            <span className="text-xs font-medium tracking-wide opacity-70 group-hover:opacity-100">{site.label}</span>
+                        </a>
+                    ))}
+                </div>
+
+            </div>
+
+            {/* Footer Quote/Info */}
+            <div className="fixed bottom-8 text-center blur-target animate-enter delay-300">
+                 <p className="text-xs text-gray-600 hover:text-gray-400 transition-colors cursor-default">
+                    DESIGNED FOR FOCUS
+                 </p>
+            </div>
+        </div>
+    );
+}
