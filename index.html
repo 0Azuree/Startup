@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aether | Customized</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Define custom fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Roboto:wght@300;400;500&family=JetBrains+Mono:wght@300;400&family=Lora:ital@0;1&display=swap');
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Inter', sans-serif; /* Default font */
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        /* Keyframe for fade-in effect */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-enter { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        
+        /* Custom styles for range slider track */
+        input[type=range]::-webkit-slider-runnable-track {
+            background: rgba(255, 255, 255, 0.2);
+            height: 4px;
+            border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            margin-top: -5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="starfieldCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+    <div id="app" class="relative min-h-screen flex flex-col items-center justify-center p-6 transition-all duration-500">
+        
+        <!-- NEW: Background Blur Overlay (z-5 is above the background/starfield z-0, but below content z-10) -->
+        <div id="blur-overlay" class="fixed inset-0 z-[5] bg-black/50 transition-all duration-500 pointer-events-none opacity-0"></div>
+
+        <!-- Top Right Controls -->
+        <div class="absolute top-6 right-6 flex gap-2 z-50">
+             <button id="settings-btn" class="p-3 rounded-full text-white/80 hover:bg-white/10 transition-colors">
+                <i data-lucide="settings" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="relative z-10 w-full max-w-5xl flex flex-col items-center gap-10">
+            
+            <!-- Clock Header -->
+            <div id="clock-header" class="text-center flex flex-col items-center animate-enter">
+                <h2 id="greeting" class="text-xl md:text-2xl font-light opacity-60 tracking-[0.2em] uppercase mb-2"></h2>
+                <h1 id="clock" class="leading-none select-none"></h1>
+                <p id="date" class="text-lg opacity-50 tracking-widest uppercase mt-4"></p>
+            </div>
+
+            <!-- Search Bar -->
+            <div id="search-container" class="w-full max-w-xl relative animate-enter delay-100 group">
+                <div class="absolute inset-0 bg-blue-500/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 opacity-50 text-white"></i>
+                <input 
+                    type="text"
+                    id="search-input"
+                    placeholder="Search the universe..."
+                    class="w-full py-4 pl-14 pr-4 text-lg outline-none transition-all shadow-2xl"
+                />
+            </div>
+
+            <!-- Shortcuts -->
+            <div id="shortcuts-grid" class="grid animate-enter delay-200" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));">
+                <!-- Shortcuts will be injected here -->
+                
+                <!-- Add Button -->
+                <button id="add-shortcut-btn"
+                        class="flex flex-col items-center justify-center transition-transform hover:-translate-y-1 hover:bg-white/5"
+                        style="border: 2px dashed rgba(255,255,255,0.1); border-radius: 24px;">
+                    <i data-lucide="plus" class="w-8 h-8 opacity-30 text-white"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- --- MODALS --- -->
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-end bg-black/50 backdrop-blur-sm animate-enter">
+        <div id="settings-panel" class="h-full w-full max-w-md p-8 overflow-y-auto custom-scrollbar shadow-2xl bg-[#0a0a0a] border-l border-white/10 text-white">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-light">Settings</h2>
+                <button id="close-settings-btn" class="hover:opacity-70 text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+
+            <div id="settings-content">
+                <!-- Settings content will be rendered here by JS -->
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="mt-8 pt-6 border-t border-red-500/20">
+                <button id="reset-settings-btn" class="w-full py-3 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors text-sm font-bold">
+                    RESET TO DEFAULTS
+                </button>
+            </div>
+            <div class="h-10"></div> <!-- Padding for scroll -->
+        </div>
+    </div>
+
+    <!-- Add Shortcut Modal -->
+    <div id="add-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-enter">
+        <div id="add-panel" class="p-8 rounded-2xl w-full max-w-md relative border border-white/10 shadow-2xl bg-[#111] text-white">
+            <button id="close-add-btn" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x"></i></button>
+            <h3 class="text-2xl font-light mb-6">Add Shortcut</h3>
+            <form id="add-shortcut-form" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Name</label>
+                    <input type="text" id="shortcut-name" class="w-full p-3 rounded-xl text-white outline-none bg-white/5 focus:bg-white/10 transition-colors" placeholder="e.g., Reddit" required />
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">URL</label>
+                    <input type="text" id="shortcut-url" class="w-full p-3 rounded-xl text-white outline-none bg-white/5 focus:bg-white/10 transition-colors" placeholder="reddit.com" required />
+                </div>
+                <button type="submit" class="mt-4 bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-500 transition-colors">Add to Dashboard</button>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Global State and Constants ---
+        const DEFAULT_SETTINGS = {
+            bgColor: '#050505',
+            bgGradient: true,
+            bgGradientEnd: '#1a1a2e',
+            fontFamily: 'Inter',
+            textColor: '#ffffff',
+            glassBlur: 16,
+            glassOpacity: 0.05,
+            glassBorder: true,
+            showParticles: true,
+            particleCount: 80,
+            particleSpeed: 1,
+            particleSize: 2,
+            particleColor: '#ffffff',
+            particleLinks: true,
+            showClock: true,
+            use24Hour: false,
+            showSeconds: false,
+            clockSize: 6,
+            clockWeight: '100',
+            showDate: true,
+            dateFormat: 'long',
+            showGreeting: true,
+            customGreeting: '',
+            showSearch: true,
+            searchEngine: 'google',
+            searchPlaceholder: 'Search the universe...',
+            searchRoundness: 'full',
+            autoFocusSearch: true,
+            shortcutSize: 100,
+            shortcutGap: 24,
+            showLabels: true,
+            openNewTab: false,
+            uiScale: 1,
+        };
+
+        let settings = { ...DEFAULT_SETTINGS };
+        let shortcuts = [];
+        let isSearchFocused = false;
+        let animationFrameId;
+
+        // --- DOM Elements ---
+        const $ = selector => document.querySelector(selector);
+        const app = $('#app');
+        const clockH1 = $('#clock');
+        const greetingH2 = $('#greeting');
+        const dateP = $('#date');
+        const searchInput = $('#search-input');
+        const searchContainer = $('#search-container');
+        const shortcutsGrid = $('#shortcuts-grid');
+        const settingsModal = $('#settings-modal');
+        const addModal = $('#add-modal');
+        const blurOverlay = $('#blur-overlay');
+        const canvas = $('#starfieldCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // --- Utility Functions ---
+        const saveState = () => {
+            localStorage.setItem('aether-settings-v2-vanilla', JSON.stringify(settings));
+            localStorage.setItem('aether-shortcuts-vanilla', JSON.stringify(shortcuts));
+        };
+
+        const loadState = () => {
+            const savedSettings = localStorage.getItem('aether-settings-v2-vanilla');
+            if (savedSettings) {
+                // Merge saved settings with defaults to ensure new settings fields are included
+                settings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
+            }
+            const savedShortcuts = localStorage.getItem('aether-shortcuts-vanilla');
+            if (savedShortcuts) {
+                shortcuts = JSON.parse(savedShortcuts);
+            }
+        };
+
+        const getGlassStyle = () => ({
+            background: `rgba(255, 255, 255, ${settings.glassOpacity})`,
+            backdropFilter: `blur(${settings.glassBlur}px)`,
+            WebkitBackdropFilter: `blur(${settings.glassBlur}px)`,
+            border: settings.glassBorder ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+        });
+
+        // --- Renderer Functions ---
+
+        function renderClockAndDate() {
+            const now = new Date();
+            
+            // Time
+            if (settings.showClock) {
+                clockH1.textContent = now.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: settings.showSeconds ? '2-digit' : undefined, 
+                    hour12: !settings.use24Hour 
+                });
+                clockH1.style.fontSize = `${settings.clockSize}rem`;
+                clockH1.style.fontWeight = settings.clockWeight;
+                clockH1.style.display = 'block';
+            } else {
+                clockH1.style.display = 'none';
+            }
+
+            // Date
+            if (settings.showDate) {
+                dateP.textContent = now.toLocaleDateString([], { 
+                    weekday: 'long', 
+                    month: settings.dateFormat === 'long' ? 'long' : 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+                dateP.style.display = 'block';
+            } else {
+                dateP.style.display = 'none';
+            }
+
+            // Greeting
+            if (settings.showGreeting) {
+                const h = now.getHours();
+                const defaultGreeting = h < 12 ? "Good Morning" : h < 18 ? "Good Afternoon" : "Good Evening";
+                greetingH2.textContent = settings.customGreeting || defaultGreeting;
+                greetingH2.style.display = 'block';
+            } else {
+                greetingH2.style.display = 'none';
+            }
+
+            // Apply global text color
+            clockH1.style.color = settings.textColor;
+            greetingH2.style.color = settings.textColor;
+            dateP.style.color = settings.textColor;
+
+            // Schedule next update
+            setTimeout(renderClockAndDate, 1000 - now.getMilliseconds());
+        }
+
+        function renderSearch() {
+            searchContainer.style.display = settings.showSearch ? 'block' : 'none';
+            if (!settings.showSearch) return;
+
+            const style = getGlassStyle();
+            searchInput.style.backgroundColor = style.background;
+            searchInput.style.backdropFilter = style.backdropFilter;
+            searchInput.style.WebkitBackdropFilter = style.WebkitBackdropFilter;
+            searchInput.style.border = style.border;
+            searchInput.style.color = settings.textColor;
+            searchInput.placeholder = settings.searchPlaceholder;
+            
+            let roundness = '0px';
+            if (settings.searchRoundness === 'full') roundness = '9999px';
+            if (settings.searchRoundness === 'md') roundness = '12px';
+            searchInput.style.borderRadius = roundness;
+
+            if (settings.autoFocusSearch) {
+                searchInput.focus();
+            }
+        }
+
+        function renderShortcuts() {
+            shortcutsGrid.style.gap = `${settings.shortcutGap}px`;
+            shortcutsGrid.style.gridTemplateColumns = `repeat(auto-fit, minmax(${settings.shortcutSize}px, 1fr))`;
+
+            shortcutsGrid.querySelectorAll('.shortcut-item').forEach(el => el.remove());
+
+            const style = getGlassStyle();
+
+            shortcuts.forEach(site => {
+                const iconSize = Math.max(24, settings.shortcutSize / 4);
+                
+                const link = document.createElement('a');
+                link.href = site.url;
+                link.target = settings.openNewTab ? '_blank' : '_self';
+                link.className = `group relative flex flex-col items-center justify-center transition-transform hover:-translate-y-1 shortcut-item`;
+                link.style.width = `${settings.shortcutSize}px`;
+                link.style.height = `${settings.shortcutSize}px`;
+                link.style.borderRadius = '24px';
+                link.style.backgroundColor = style.background;
+                link.style.backdropFilter = style.backdropFilter;
+                link.style.WebkitBackdropFilter = style.WebkitBackdropFilter;
+                link.style.border = style.border;
+                link.style.color = settings.textColor;
+
+                // Delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = "absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10";
+                deleteBtn.innerHTML = '<i data-lucide="x" class="w-3 h-3"></i>';
+                deleteBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Using custom modal instead of confirm()
+                    showCustomConfirm('Are you sure you want to delete this shortcut?', () => {
+                        shortcuts = shortcuts.filter(s => s.id !== site.id);
+                        saveState();
+                        renderShortcuts();
+                    });
+                };
+
+                // Icon (using globe as placeholder for simplicity)
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'globe');
+                icon.className = `mb-2 opacity-70 group-hover:opacity-100`;
+                icon.style.width = `${iconSize}px`;
+                icon.style.height = `${iconSize}px`;
+
+                // Label
+                const label = document.createElement('span');
+                label.className = "text-xs opacity-60 group-hover:opacity-100 font-medium truncate w-11/12 text-center";
+                label.textContent = site.name;
+                label.style.display = settings.showLabels ? 'block' : 'none';
+
+                link.appendChild(deleteBtn);
+                link.appendChild(icon);
+                link.appendChild(label);
+                
+                shortcutsGrid.insertBefore(link, $('#add-shortcut-btn'));
+            });
+
+            lucide.createIcons(); // Re-render Lucide icons
+        }
+
+        function renderApp() {
+            // Global App Style
+            app.style.color = settings.textColor;
+            app.style.transform = `scale(${settings.uiScale})`;
+            app.style.fontFamily = settings.fontFamily;
+
+            // Background Style
+            document.body.style.background = settings.bgGradient 
+                ? `linear-gradient(to bottom right, ${settings.bgColor}, ${settings.bgGradientEnd})`
+                : settings.bgColor;
+
+            // Redraw Starfield
+            if (settings.showParticles) {
+                initStarfield(true);
+            } else {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            renderClockAndDate();
+            renderSearch();
+            renderShortcuts();
+            saveState();
+        }
+
+        // --- Event Handlers ---
+        function handleSearchKeydown(e) {
+            if (e.key === 'Enter' && searchInput.value.trim()) {
+                let url = '';
+                const q = encodeURIComponent(searchInput.value.trim());
+                switch(settings.searchEngine) {
+                    case 'bing': url = `https://www.bing.com/search?q=${q}`; break;
+                    case 'ddg': url = `https://duckduckgo.com/?q=${q}`; break;
+                    case 'youtube': url = `https://www.youtube.com/results?search_query=${q}`; break;
+                    default: url = `https://www.google.com/search?q=${q}`;
+                }
+                window.location.href = url;
+            }
+        }
+
+        function handleSearchFocus() {
+            isSearchFocused = true;
+            blurOverlay.classList.add('opacity-100', 'backdrop-blur-md');
+        }
+
+        function handleSearchBlur() {
+            isSearchFocused = false;
+            blurOverlay.classList.remove('opacity-100', 'backdrop-blur-md');
+        }
+
+        function handleAddShortcut(e) {
+            e.preventDefault();
+            const name = $('#shortcut-name').value.trim();
+            let url = $('#shortcut-url').value.trim();
+
+            if (!name || !url) return;
+            
+            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+            
+            shortcuts.push({ name, url, id: Date.now() });
+            
+            $('#shortcut-name').value = '';
+            $('#shortcut-url').value = '';
+            
+            addModal.classList.add('hidden');
+            renderShortcuts();
+        }
+        
+        // --- Starfield Logic ---
+        let particles = [];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createParticles() {
+            particles = [];
+            const count = settings.particleCount;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * settings.particleSpeed * 0.5,
+                    vy: (Math.random() - 0.5) * settings.particleSpeed * 0.5,
+                    size: Math.random() * settings.particleSize + 0.5,
+                    alpha: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        function animateStarfield() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const [r, g, b] = hexToRgb(settings.particleColor);
+
+            // Draw Particles
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Bounce off edges
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.alpha})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Connections
+                if (settings.particleLinks) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const other = particles[j];
+                        const dx = p.x - other.x;
+                        const dy = p.y - other.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+
+                        if (dist < 150) {
+                            const linkAlpha = (1 - dist/150) * 0.3; // max opacity 0.3
+                            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${linkAlpha})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(other.x, other.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            });
+            animationFrameId = requestAnimationFrame(animateStarfield);
+        }
+
+        function initStarfield(recreate = false) {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (!settings.showParticles) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
+            if (recreate || particles.length !== settings.particleCount) {
+                 resizeCanvas();
+                 createParticles();
+            }
+            
+            animateStarfield();
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : [255, 255, 255];
+        }
+
+        // --- Settings Modal Renderer ---
+        
+        function SettingItem(label, contentHtml) {
+            return `
+                <div class="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+                    <span class="text-sm opacity-80">${label}</span>
+                    <div class="w-1/2 flex justify-end">${contentHtml}</div>
+                </div>
+            `;
+        }
+
+        function SettingSection(title, icon, contentHtml) {
+            return `
+                <div class="mb-8">
+                    <h4 class="text-xs font-bold uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2">
+                        <i data-lucide="${icon}" class="w-4 h-4"></i> ${title}
+                    </h4>
+                    ${contentHtml}
+                </div>
+            `;
+        }
+        
+        function renderSettings() {
+            const content = document.getElementById('settings-content');
+            let html = '';
+
+            // --- Visuals Section ---
+            let visualsHtml = '';
+            visualsHtml += SettingItem("Background Color", `<input type="color" id="setting-bgColor" value="${settings.bgColor}" class="w-6 h-6 bg-transparent border-0 p-0 cursor-pointer" />`);
+            visualsHtml += SettingItem("Enable Gradient", `<button id="setting-bgGradient-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.bgGradient ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.bgGradient ? 'left-6' : 'left-1'}" /></button>`);
+            if (settings.bgGradient) {
+                visualsHtml += SettingItem("Gradient End Color", `<input type="color" id="setting-bgGradientEnd" value="${settings.bgGradientEnd}" class="w-6 h-6 bg-transparent border-0 p-0 cursor-pointer" />`);
+            }
+            visualsHtml += SettingItem("Text Color", `<input type="color" id="setting-textColor" value="${settings.textColor}" class="w-6 h-6 bg-transparent border-0 p-0 cursor-pointer" />`);
+            visualsHtml += SettingItem("Font Family", `
+                <select id="setting-fontFamily" class="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs outline-none focus:border-blue-500">
+                    <option value="Inter" ${settings.fontFamily === 'Inter' ? 'selected' : ''}>Inter (Clean)</option>
+                    <option value="Roboto" ${settings.fontFamily === 'Roboto' ? 'selected' : ''}>Roboto (Standard)</option>
+                    <option value="JetBrains Mono" ${settings.fontFamily === 'JetBrains Mono' ? 'selected' : ''}>Mono (Code)</option>
+                    <option value="Lora" ${settings.fontFamily === 'Lora' ? 'selected' : ''}>Lora (Serif)</option>
+                </select>`);
+            visualsHtml += SettingItem("UI Scale", `<input type="range" min="0.5" max="1.5" step="0.05" value="${settings.uiScale}" id="setting-uiScale" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+
+            html += SettingSection("Visuals & Theme", "palette", visualsHtml);
+
+            // --- Glassmorphism Section ---
+            let glassHtml = '';
+            glassHtml += SettingItem("Blur Amount", `<input type="range" min="0" max="50" step="1" value="${settings.glassBlur}" id="setting-glassBlur" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+            glassHtml += SettingItem("Opacity", `<input type="range" min="0" max="1" step="0.05" value="${settings.glassOpacity}" id="setting-glassOpacity" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+            glassHtml += SettingItem("Show Borders", `<button id="setting-glassBorder-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.glassBorder ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.glassBorder ? 'left-6' : 'left-1'}" /></button>`);
+            html += SettingSection("Glass Effect", "droplets", glassHtml);
+            
+            // --- Particles Section ---
+            let particleHtml = '';
+            particleHtml += SettingItem("Show Particles", `<button id="setting-showParticles-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showParticles ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showParticles ? 'left-6' : 'left-1'}" /></button>`);
+            if (settings.showParticles) {
+                particleHtml += SettingItem("Particle Count", `<input type="range" min="10" max="300" step="10" value="${settings.particleCount}" id="setting-particleCount" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+                particleHtml += SettingItem("Speed", `<input type="range" min="0" max="5" step="0.1" value="${settings.particleSpeed}" id="setting-particleSpeed" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+                particleHtml += SettingItem("Size", `<input type="range" min="1" max="5" step="0.5" value="${settings.particleSize}" id="setting-particleSize" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+                particleHtml += SettingItem("Color", `<input type="color" id="setting-particleColor" value="${settings.particleColor}" class="w-6 h-6 bg-transparent border-0 p-0 cursor-pointer" />`);
+                particleHtml += SettingItem("Show Connections", `<button id="setting-particleLinks-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.particleLinks ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.particleLinks ? 'left-6' : 'left-1'}" /></button>`);
+            }
+            html += SettingSection("Starfield", "sparkles", particleHtml);
+
+
+            // --- Clock Section ---
+            let clockHtml = '';
+            clockHtml += SettingItem("Show Clock", `<button id="setting-showClock-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showClock ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showClock ? 'left-6' : 'left-1'}" /></button>`);
+            clockHtml += SettingItem("Clock Size", `<input type="range" min="2" max="12" step="0.5" value="${settings.clockSize}" id="setting-clockSize" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+            clockHtml += SettingItem("Font Weight", `
+                <select id="setting-clockWeight" class="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs outline-none focus:border-blue-500">
+                    <option value="100" ${settings.clockWeight === '100' ? 'selected' : ''}>Thin</option>
+                    <option value="300" ${settings.clockWeight === '300' ? 'selected' : ''}>Light</option>
+                    <option value="400" ${settings.clockWeight === '400' ? 'selected' : ''}>Regular</option>
+                    <option value="700" ${settings.clockWeight === '700' ? 'selected' : ''}>Bold</option>
+                    <option value="900" ${settings.clockWeight === '900' ? 'selected' : ''}>Black</option>
+                </select>`);
+            clockHtml += SettingItem("24-Hour Mode", `<button id="setting-use24Hour-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.use24Hour ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.use24Hour ? 'left-6' : 'left-1'}" /></button>`);
+            clockHtml += SettingItem("Show Seconds", `<button id="setting-showSeconds-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showSeconds ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showSeconds ? 'left-6' : 'left-1'}" /></button>`);
+            clockHtml += SettingItem("Show Date", `<button id="setting-showDate-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showDate ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showDate ? 'left-6' : 'left-1'}" /></button>`);
+            clockHtml += SettingItem("Show Greeting", `<button id="setting-showGreeting-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showGreeting ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showGreeting ? 'left-6' : 'left-1'}" /></button>`);
+            clockHtml += SettingItem("Custom Greeting Name", `<input type="text" id="setting-customGreeting" value="${settings.customGreeting}" placeholder="Leave blank for auto" class="w-32 bg-transparent border-b border-white/20 text-right outline-none text-sm" />`);
+            html += SettingSection("Time & Date", "clock", clockHtml);
+
+            // --- Search Section ---
+            let searchHtml = '';
+            searchHtml += SettingItem("Show Search", `<button id="setting-showSearch-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showSearch ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showSearch ? 'left-6' : 'left-1'}" /></button>`);
+            if (settings.showSearch) {
+                searchHtml += SettingItem("Search Engine", `
+                    <select id="setting-searchEngine" class="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs outline-none focus:border-blue-500">
+                        <option value="google" ${settings.searchEngine === 'google' ? 'selected' : ''}>Google</option>
+                        <option value="bing" ${settings.searchEngine === 'bing' ? 'selected' : ''}>Bing</option>
+                        <option value="ddg" ${settings.searchEngine === 'ddg' ? 'selected' : ''}>DuckDuckGo</option>
+                        <option value="youtube" ${settings.searchEngine === 'youtube' ? 'selected' : ''}>YouTube</option>
+                    </select>`);
+                searchHtml += SettingItem("Shape", `
+                    <select id="setting-searchRoundness" class="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs outline-none focus:border-blue-500">
+                        <option value="none" ${settings.searchRoundness === 'none' ? 'selected' : ''}>Square</option>
+                        <option value="md" ${settings.searchRoundness === 'md' ? 'selected' : ''}>Rounded</option>
+                        <option value="full" ${settings.searchRoundness === 'full' ? 'selected' : ''}>Pill</option>
+                    </select>`);
+                searchHtml += SettingItem("Auto Focus", `<button id="setting-autoFocusSearch-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.autoFocusSearch ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.autoFocusSearch ? 'left-6' : 'left-1'}" /></button>`);
+            }
+            html += SettingSection("Search", "search", searchHtml);
+
+            // --- Grid Section ---
+            let gridHtml = '';
+            gridHtml += SettingItem("Icon Size", `<input type="range" min="60" max="150" step="10" value="${settings.shortcutSize}" id="setting-shortcutSize" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+            gridHtml += SettingItem("Grid Gap", `<input type="range" min="10" max="50" step="5" value="${settings.shortcutGap}" id="setting-shortcutGap" class="w-full accent-blue-500 h-1 bg-white/20 rounded-lg appearance-none" />`);
+            gridHtml += SettingItem("Show Labels", `<button id="setting-showLabels-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.showLabels ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.showLabels ? 'left-6' : 'left-1'}" /></button>`);
+            gridHtml += SettingItem("Open in New Tab", `<button id="setting-openNewTab-toggle" class="w-10 h-5 rounded-full relative transition-colors ${settings.openNewTab ? 'bg-blue-500' : 'bg-white/20'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${settings.openNewTab ? 'left-6' : 'left-1'}" /></button>`);
+            html += SettingSection("Grid & Shortcuts", "layout-grid", gridHtml);
+
+            content.innerHTML = html;
+            lucide.createIcons();
+            attachSettingsListeners();
+        }
+
+        // --- Settings Change Handlers ---
+        function attachSettingsListeners() {
+            // Helper function for toggles
+            const setupToggle = (id, prop) => {
+                const el = $(`#setting-${id}-toggle`);
+                if (el) {
+                    el.onclick = () => {
+                        settings[prop] = !settings[prop];
+                        renderSettings(); // Re-render to update dependent settings
+                        renderApp();
+                    };
+                }
+            };
+            
+            // Helper function for inputs (ranges, colors, text)
+            const setupInput = (id, prop, isNumber = false) => {
+                const el = $(`#setting-${id}`);
+                if (el) {
+                    el.oninput = () => {
+                        settings[prop] = isNumber ? parseFloat(el.value) : el.value;
+                        renderApp();
+                    };
+                }
+            };
+
+            // Toggles
+            setupToggle('bgGradient', 'bgGradient');
+            setupToggle('glassBorder', 'glassBorder');
+            setupToggle('showParticles', 'showParticles');
+            setupToggle('particleLinks', 'particleLinks');
+            setupToggle('showClock', 'showClock');
+            setupToggle('use24Hour', 'use24Hour');
+            setupToggle('showSeconds', 'showSeconds');
+            setupToggle('showDate', 'showDate');
+            setupToggle('showGreeting', 'showGreeting');
+            setupToggle('showSearch', 'showSearch');
+            setupToggle('autoFocusSearch', 'autoFocusSearch');
+            setupToggle('showLabels', 'showLabels');
+            setupToggle('openNewTab', 'openNewTab');
+
+            // Inputs
+            setupInput('bgColor', 'bgColor');
+            setupInput('bgGradientEnd', 'bgGradientEnd');
+            setupInput('textColor', 'textColor');
+            setupInput('fontFamily', 'fontFamily');
+            setupInput('uiScale', 'uiScale', true);
+
+            setupInput('glassBlur', 'glassBlur', true);
+            setupInput('glassOpacity', 'glassOpacity', true);
+            
+            setupInput('particleCount', 'particleCount', true);
+            setupInput('particleSpeed', 'particleSpeed', true);
+            setupInput('particleSize', 'particleSize', true);
+            setupInput('particleColor', 'particleColor');
+
+            setupInput('clockSize', 'clockSize', true);
+            setupInput('clockWeight', 'clockWeight');
+            setupInput('customGreeting', 'customGreeting');
+
+            setupInput('searchEngine', 'searchEngine');
+            setupInput('searchRoundness', 'searchRoundness');
+
+            setupInput('shortcutSize', 'shortcutSize', true);
+            setupInput('shortcutGap', 'shortcutGap', true);
+            
+            // Reset Button
+            $('#reset-settings-btn').onclick = () => {
+                if (confirm('Reset all settings to default?')) {
+                    settings = { ...DEFAULT_SETTINGS };
+                    renderSettings();
+                    renderApp();
+                }
+            };
+        }
+
+        // --- Custom Confirm/Alert Modal (No window.confirm/alert) ---
+        function showCustomConfirm(message, callback) {
+            const existingModal = document.getElementById('custom-alert-modal');
+            if (existingModal) existingModal.remove();
+
+            const modalHtml = `
+                <div id="custom-alert-modal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div class="p-6 rounded-xl w-full max-w-sm bg-[#1a1a1a] text-white shadow-2xl border border-white/10">
+                        <p class="mb-6">${message}</p>
+                        <div class="flex justify-end gap-3">
+                            <button id="alert-cancel" class="px-4 py-2 rounded bg-white/10 hover:bg-white/20 transition-colors text-sm">Cancel</button>
+                            <button id="alert-confirm" class="px-4 py-2 rounded bg-red-600 hover:bg-red-500 transition-colors text-sm font-medium">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            const modal = $('#custom-alert-modal');
+            $('#alert-confirm').onclick = () => {
+                callback();
+                modal.remove();
+            };
+            $('#alert-cancel').onclick = () => modal.remove();
+        }
+
+        // --- Initialization and Event Wiring ---
+        window.onload = () => {
+            loadState();
+            resizeCanvas();
+            renderApp();
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                // Re-init starfield on resize to adjust particle positions to new dimensions
+                initStarfield(true); 
+            });
+
+            // Search Handlers
+            searchInput.addEventListener('keydown', handleSearchKeydown);
+            searchInput.addEventListener('focus', handleSearchFocus);
+            searchInput.addEventListener('blur', handleSearchBlur);
+
+            // Settings Modal Handlers
+            $('#settings-btn').onclick = () => {
+                renderSettings();
+                settingsModal.classList.remove('hidden');
+            };
+            $('#close-settings-btn').onclick = () => settingsModal.classList.add('hidden');
+            settingsModal.onclick = (e) => {
+                if (e.target.id === 'settings-modal') settingsModal.classList.add('hidden');
+            };
+
+            // Add Shortcut Modal Handlers
+            $('#add-shortcut-btn').onclick = () => {
+                addModal.classList.remove('hidden');
+                $('#shortcut-name').focus();
+            };
+            $('#close-add-btn').onclick = () => addModal.classList.add('hidden');
+            addModal.onclick = (e) => {
+                if (e.target.id === 'add-modal') addModal.classList.add('hidden');
+            };
+            $('#add-shortcut-form').addEventListener('submit', handleAddShortcut);
+        };
+    </script>
+</body>
+</html>
